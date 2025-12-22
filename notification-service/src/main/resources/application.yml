@@ -1,0 +1,371 @@
+# ============================================================================
+# Spring Boot Application Configuration - Notification Service
+# ============================================================================
+# Service: notification-service
+# Port: 8083
+# Database: PostgreSQL (linkedin_notifications)
+# Cache: Redis
+# Messaging: Kafka (Consumer)
+# Email: SMTP
+# ============================================================================
+
+# ============================================================================
+# Spring Application Configuration
+# ============================================================================
+spring:
+  application:
+    name: notification-service
+  
+  # ==========================================================================
+  # Spring Profiles
+  # ==========================================================================
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # ==========================================================================
+  # Database Configuration - PostgreSQL
+  # ==========================================================================
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:linkedin_notifications}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP Connection Pool
+    hikari:
+      pool-name: NotificationServicePool
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # ==========================================================================
+  # JPA/Hibernate Configuration
+  # ==========================================================================
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+  
+  # ==========================================================================
+  # Flyway Database Migration
+  # ==========================================================================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+  
+  # ==========================================================================
+  # Redis Configuration
+  # ==========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 1
+      timeout: 60000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+  
+  # ==========================================================================
+  # Cache Configuration
+  # ==========================================================================
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "notification-service:"
+  
+  # ==========================================================================
+  # Kafka Configuration
+  # ==========================================================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    
+    # Consumer Configuration
+    consumer:
+      group-id: notification-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      enable-auto-commit: false
+      max-poll-records: 10
+      properties:
+        spring.json.trusted.packages: "*"
+    
+    # Listener Configuration
+    listener:
+      ack-mode: manual
+      concurrency: 3
+
+  # ==========================================================================
+  # Email Configuration (SMTP)
+  # ==========================================================================
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    # Default sender
+    from: ${MAIL_FROM:LinkedIn Notifications <noreply@linkedin.com>}
+
+  # ==========================================================================
+  # Thymeleaf Configuration (Email Templates)
+  # ==========================================================================
+  thymeleaf:
+    prefix: classpath:/templates/email/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    cache: true
+
+# ============================================================================
+# Server Configuration
+# ============================================================================
+server:
+  port: ${SERVER_PORT:8083}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+# ============================================================================
+# Actuator Configuration
+# ============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    mail:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+logging:
+  level:
+    root: INFO
+    com.linkedin.notification: DEBUG
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.springframework.mail: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  file:
+    name: logs/notification-service.log
+    max-size: 10MB
+    max-history: 30
+
+# ============================================================================
+# SpringDoc OpenAPI Configuration
+# ============================================================================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+
+# ============================================================================
+# Application-Specific Configuration
+# ============================================================================
+app:
+  # Security
+  security:
+    jwt:
+      secret: ${JWT_SECRET:myVerySecretKeyForDevelopmentPurposesOnlyMustBeAtLeast256BitsLongForHS512Algorithm}
+  
+  # Kafka Topics
+  kafka:
+    topics:
+      connection-requested: connection-requested
+      connection-accepted: connection-accepted
+      connection-rejected: connection-rejected
+      connection-blocked: connection-blocked
+      connection-cancelled: connection-cancelled
+      connection-removed: connection-removed
+  
+  # Notification Configuration
+  notification:
+    # Batch processing
+    batch-size: 100
+    batch-interval-ms: 5000
+    
+    # Retry configuration
+    max-retry-attempts: 3
+    retry-delay-ms: 1000
+    
+    # Cleanup
+    cleanup-old-read-days: 90
+    cleanup-old-unread-days: 365
+    
+    # Rate limiting (per user per hour)
+    rate-limit-per-hour: 100
+    
+    # Email configuration
+    email:
+      enabled: true
+      async: true
+      template-cache: true
+      
+    # Push notification configuration (future)
+    push:
+      enabled: false
+      fcm-api-key: ${FCM_API_KEY:}
+      
+    # In-app notification configuration
+    in-app:
+      enabled: true
+      max-unread: 100
+
+# User Service Configuration
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000
+        readTimeout: 5000
+      user-service:
+        connectTimeout: 1000
+        readTimeout: 3000
+
+# ============================================================================
+# Profile-Specific Configurations
+# ============================================================================
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  jpa:
+    show-sql: true
+
+  mail:
+    host: smtp.mailtrap.io
+    port: 2525
+    username: ${MAILTRAP_USERNAME:}
+    password: ${MAILTRAP_PASSWORD:}
+
+logging:
+  level:
+    com.linkedin.notification: DEBUG
+    org.springframework.kafka: DEBUG
+
+server:
+  port: 8083
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    show-sql: false
+
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+
+  thymeleaf:
+    cache: true
+
+logging:
+  level:
+    root: WARN
+    com.linkedin.notification: INFO
+
+server:
+  port: ${SERVER_PORT:8083}
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/linkedin_notifications_test
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  flyway:
+    enabled: false
+
+  mail:
+    host: localhost
+    port: 3025
+
+logging:
+  level:
+    com.linkedin.notification: DEBUG
+

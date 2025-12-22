@@ -1,0 +1,330 @@
+# ============================================================================
+# Spring Boot Application Configuration - Post Service
+# ============================================================================
+# Service: post-service
+# Port: 8084
+# Database: PostgreSQL (linkedin_posts)
+# Cache: Redis
+# Messaging: Kafka (Producer)
+# ============================================================================
+
+# ============================================================================
+# Spring Application Configuration
+# ============================================================================
+spring:
+  application:
+    name: post-service
+  
+  # ==========================================================================
+  # Spring Profiles
+  # ==========================================================================
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # ==========================================================================
+  # Database Configuration - PostgreSQL
+  # ==========================================================================
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:linkedin_posts}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP Connection Pool
+    hikari:
+      pool-name: PostServicePool
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # ==========================================================================
+  # JPA/Hibernate Configuration
+  # ==========================================================================
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+  
+  # ==========================================================================
+  # Flyway Database Migration
+  # ==========================================================================
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+  
+  # ==========================================================================
+  # Redis Configuration
+  # ==========================================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 2
+      timeout: 60000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+  
+  # ==========================================================================
+  # Cache Configuration
+  # ==========================================================================
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "post-service:"
+  
+  # ==========================================================================
+  # Kafka Configuration
+  # ==========================================================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    
+    # Producer Configuration
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+# ============================================================================
+# Server Configuration
+# ============================================================================
+server:
+  port: ${SERVER_PORT:8084}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+# ============================================================================
+# Actuator Configuration
+# ============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+logging:
+  level:
+    root: INFO
+    com.linkedin.post: DEBUG
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  file:
+    name: logs/post-service.log
+    max-size: 10MB
+    max-history: 30
+
+# ============================================================================
+# SpringDoc OpenAPI Configuration
+# ============================================================================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+
+# ============================================================================
+# Application-Specific Configuration
+# ============================================================================
+app:
+  # Security
+  security:
+    jwt:
+      secret: ${JWT_SECRET:myVerySecretKeyForDevelopmentPurposesOnlyMustBeAtLeast256BitsLongForHS512Algorithm}
+  
+  # Kafka Topics
+  kafka:
+    topics:
+      post-created: post-created
+      post-updated: post-updated
+      post-deleted: post-deleted
+      post-liked: post-liked
+      post-unliked: post-unliked
+      post-commented: post-commented
+      post-shared: post-shared
+  
+  # Post Configuration
+  post:
+    # Content limits
+    max-content-length: 3000  # characters
+    max-hashtags: 10
+    max-mentions: 20
+    max-images: 10
+    
+    # Pagination
+    default-page-size: 20
+    max-page-size: 100
+    
+    # Feed configuration
+    feed-size: 50
+    feed-cache-ttl-minutes: 5
+    
+    # Trending
+    trending-period-hours: 24
+    trending-min-engagement: 10
+    
+    # Cleanup
+    cleanup-deleted-posts-days: 30
+
+  # Image Storage (S3 - placeholder for now)
+  storage:
+    type: local  # local or s3
+    local-path: ${user.home}/linkedin-uploads
+    s3:
+      bucket: ${S3_BUCKET:linkedin-posts}
+      region: ${S3_REGION:us-east-1}
+      enabled: false
+
+# Service URLs
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+
+connection:
+  service:
+    url: ${CONNECTION_SERVICE_URL:http://localhost:8082}
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000
+        readTimeout: 5000
+        loggerLevel: BASIC
+      user-service:
+        connectTimeout: 1000
+        readTimeout: 3000
+      connection-service:
+        connectTimeout: 1000
+        readTimeout: 3000
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# ============================================================================
+# Profile-Specific Configurations
+# ============================================================================
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.linkedin.post: DEBUG
+    org.springframework.kafka: DEBUG
+
+server:
+  port: 8084
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    show-sql: false
+
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 20
+
+logging:
+  level:
+    root: WARN
+    com.linkedin.post: INFO
+
+server:
+  port: ${SERVER_PORT:8084}
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/linkedin_posts_test
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    com.linkedin.post: DEBUG
+

@@ -1,0 +1,20 @@
+.
+├── API_REFERENCE.md
+├── ARCHITECTURE.md
+├── COMPLETION_SUMMARY.md
+├── LEARNING_GUIDE.md
+├── PROJECT_STRUCTURE.txt
+├── README.md
+├── common-lib
+│   ├── pom.xml
+│   └── src
+│       ├── main
+│       └── test
+├── pom.xml
+└── user-service
+    ├── pom.xml
+    └── src
+        ├── main
+        └── test
+
+9 directories, 9 files

@@ -1,0 +1,220 @@
+package com.linkedin.notification.repository;
+
+import com.linkedin.notification.model.NotificationPreference;
+import com.linkedin.notification.model.NotificationType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Spring Data JPA Repository for NotificationPreference entities.
+ * 
+ * Purpose:
+ * Manages user preferences for notification delivery channels.
+ * Determines which channels (email, in-app, push) to use for each notification type.
+ * 
+ * Example Flow:
+ * <pre>
+ * User: "I want connection requests via email AND in-app, but not push"
+ * 
+ * Preference Record:
+ * userId=123, type=CONNECTION_REQUESTED, email=true, inApp=true, push=false
+ * 
+ * When Connection Request Arrives:
+ * 1. Check preference: repository.findByUserIdAndNotificationType(123, CONNECTION_REQUESTED)
+ * 2. Preference says: email=true, inApp=true
+ * 3. Create 2 notification records: one for email, one for in-app
+ * 4. Skip push (disabled)
+ * </pre>
+ * 
+ * Default Behavior:
+ * If no preference exists for a user+type:
+ * - EMAIL: enabled
+ * - IN_APP: enabled
+ * - PUSH: disabled
+ * - SMS: disabled
+ * 
+ * @see NotificationPreference
+ * @see NotificationType
+ */
+@Repository
+public interface NotificationPreferenceRepository extends JpaRepository<NotificationPreference, Long> {
+
+    // =========================================================================
+    // Basic Queries
+    // =========================================================================
+
+    /**
+     * Find all preferences for a specific user.
+     * 
+     * Generated SQL:
+     * SELECT * FROM notification_preferences WHERE user_id = ?
+     * 
+     * Use Case:
+     * Load all user preferences for settings page
+     * 
+     * Example Result:
+     * [
+     *   {type: CONNECTION_ACCEPTED, email: true, inApp: true, push: false},
+     *   {type: POST_LIKED, email: false, inApp: true, push: false},
+     *   ...
+     * ]
+     * 
+     * @param userId The user ID
+     * @return List of all preferences for the user
+     */
+    List<NotificationPreference> findByUserId(Long userId);
+
+    /**
+     * Find preference for a specific user and notification type.
+     * 
+     * Generated SQL:
+     * SELECT * FROM notification_preferences 
+     * WHERE user_id = ? AND notification_type = ?
+     * 
+     * Use Case:
+     * Check if user wants email for connection requests
+     * 
+     * Example:
+     * <pre>
+     * {@code
+     * Optional<NotificationPreference> pref = repository.findByUserIdAndNotificationType(
+     *     123L, NotificationType.CONNECTION_ACCEPTED
+     * );
+     * 
+     * if (pref.isPresent() && pref.get().isEmailEnabled()) {
+     *     // Send email
+     * }
+     * }
+     * </pre>
+     * 
+     * Why Optional?
+     * - Preference might not exist (new user, new notification type)
+     * - Optional prevents NullPointerException
+     * - Forces you to handle "not found" case
+     * 
+     * @param userId The user ID
+     * @param notificationType The notification type
+     * @return Optional containing preference if found
+     */
+    Optional<NotificationPreference> findByUserIdAndNotificationType(
+        Long userId, NotificationType notificationType);
+
+    /**
+     * Check if preference exists for user and type.
+     * 
+     * Generated SQL:
+     * SELECT COUNT(*) > 0 FROM notification_preferences 
+     * WHERE user_id = ? AND notification_type = ?
+     * 
+     * Use Case:
+     * Before creating preference, check if it already exists
+     * 
+     * @param userId The user ID
+     * @param notificationType The notification type
+     * @return true if preference exists, false otherwise
+     */
+    boolean existsByUserIdAndNotificationType(Long userId, NotificationType notificationType);
+
+    // =========================================================================
+    // Bulk Operations
+    // =========================================================================
+
+    /**
+     * Delete all preferences for a user.
+     * 
+     * Use Case:
+     * User account deletion (GDPR compliance)
+     * 
+     * Generated SQL:
+     * DELETE FROM notification_preferences WHERE user_id = ?
+     * 
+     * @param userId The user ID
+     * @return Number of preferences deleted
+     */
+    @Modifying
+    @Query("DELETE FROM NotificationPreference np WHERE np.userId = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
+
+    /**
+     * Create default preferences for a new user.
+     * 
+     * Use Case:
+     * When new user registers, initialize preferences with defaults
+     * 
+     * Implementation Note:
+     * This is a custom method that will be implemented in a service,
+     * not auto-generated by Spring.
+     * 
+     * Logic:
+     * <pre>
+     * For each NotificationType:
+     *   Create NotificationPreference with:
+     *     - emailEnabled = true
+     *     - inAppEnabled = true
+     *     - pushEnabled = false
+     *     - smsEnabled = false
+     * </pre>
+     * 
+     * Called from:
+     * - UserService when new user created
+     * - Or lazily when first notification sent (if not exists, create with defaults)
+     */
+
+    // =========================================================================
+    // Advanced Queries
+    // =========================================================================
+
+    /**
+     * Find users who have a specific channel enabled for a notification type.
+     * 
+     * Use Case:
+     * "Find all users who want email for connection requests"
+     * (Useful for analytics or bulk processing)
+     * 
+     * @param notificationType The notification type
+     * @param emailEnabled Email preference
+     * @return List of preferences matching criteria
+     */
+    List<NotificationPreference> findByNotificationTypeAndEmailEnabled(
+        NotificationType notificationType, boolean emailEnabled);
+
+    /**
+     * Count users with email enabled for a specific notification type.
+     * 
+     * Use Case:
+     * Analytics: "How many users want email for post likes?"
+     * 
+     * @param notificationType The notification type
+     * @param emailEnabled Email preference
+     * @return Count of users
+     */
+    long countByNotificationTypeAndEmailEnabled(
+        NotificationType notificationType, boolean emailEnabled);
+
+    /**
+     * Find users with ALL channels disabled for a specific type.
+     * 
+     * Custom query because it checks multiple columns.
+     * 
+     * Use Case:
+     * "Who doesn't want ANY notifications for post likes?"
+     * 
+     * @param notificationType The notification type
+     * @return List of preferences with all channels disabled
+     */
+    @Query("SELECT np FROM NotificationPreference np " +
+           "WHERE np.notificationType = :notificationType " +
+           "AND np.emailEnabled = false " +
+           "AND np.inAppEnabled = false " +
+           "AND np.pushEnabled = false " +
+           "AND np.smsEnabled = false")
+    List<NotificationPreference> findWithAllChannelsDisabled(
+        @Param("notificationType") NotificationType notificationType);
+}
+

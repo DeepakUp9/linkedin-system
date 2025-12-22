@@ -1,0 +1,7 @@
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/exceptions/UnauthorizedException.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/exceptions/BaseException.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/dto/ErrorResponse.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/dto/ApiResponse.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/exceptions/ValidationException.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/exceptions/ResourceNotFoundException.java
+/Users/deepakkumar/linkedin-system/common-lib/src/main/java/com/linkedin/common/exceptions/BusinessException.java

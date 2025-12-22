@@ -1,0 +1,183 @@
+# ============================================
+# User Service - Spring Boot Configuration
+# ============================================
+
+# Server Configuration
+server:
+  port: 8081
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# Application Configuration
+spring:
+  application:
+    name: user-service
+  
+  # Profile Configuration (can be overridden with --spring.profiles.active)
+  profiles:
+    active: dev
+  
+  # Database Configuration (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://localhost:5432/linkedin_users
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Connection Pool Settings
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: UserServiceHikariCP
+  
+  # JPA/Hibernate Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # Flyway manages schema, Hibernate validates only
+    show-sql: false  # Set to true for debugging
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Flyway Database Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+  
+  # Redis Configuration (Caching)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+  
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10 minutes in milliseconds
+      cache-null-values: false
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: user-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: '*'
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.linkedin.user: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator Configuration (Health Checks, Metrics)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# SpringDoc OpenAPI Configuration (Swagger UI)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: true
+
+# Application-Specific Configuration
+app:
+  security:
+    jwt:
+      # JWT Secret Key
+      # - For development: uses default value below
+      # - For production: MUST set JWT_SECRET environment variable
+      # - Minimum 256 bits (32 characters) for HS256
+      # - Generate with: openssl rand -base64 64
+      # - Example: export JWT_SECRET="your-very-long-and-random-secret-key-here"
+      secret: ${JWT_SECRET:myVerySecretKeyForDevelopmentPurposesOnlyMustBeAtLeast256BitsLongForHS512Algorithm}
+      
+      # Access Token Expiration Time
+      # - Development: 15 minutes (900000 ms) for security
+      # - Production: Can increase to 1 hour (3600000 ms) based on security requirements
+      # - Short-lived tokens limit damage if stolen
+      # - Use refresh tokens for longer sessions
+      expiration: 900000  # 15 minutes in milliseconds
+  
+  # Refresh Token Configuration
+  refresh-token:
+    # Refresh Token Expiration Time
+    # - Default: 7 days (604800000 ms)
+    # - Long-lived for better user experience
+    # - Can be revoked (stored in database)
+    expiration: 604800000  # 7 days in milliseconds
+  
+  kafka:
+    topics:
+      user-events: user-events
+      user-created: user-created
+      user-updated: user-updated
+      user-deleted: user-deleted
+  
+  cache:
+    names:
+      users: users
+      user-profiles: user-profiles
+

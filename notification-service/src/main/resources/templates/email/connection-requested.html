@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Request</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0a66c2;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #0a66c2;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #0a66c2;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #004182;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        .profile-info {
+            background-color: #f3f6f8;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">in</div>
+        </div>
+        
+        <div class="content">
+            <h1>You have a new connection request</h1>
+            
+            <p>Hi there,</p>
+            
+            <p><strong th:text="${requesterName}">John Doe</strong> wants to connect with you on LinkedIn.</p>
+            
+            <div class="profile-info">
+                <p><strong th:text="${requesterName}">John Doe</strong></p>
+                <p th:text="${requesterHeadline}">Software Engineer at Google</p>
+            </div>
+            
+            <p>Expand your professional network by connecting with people you know and trust.</p>
+            
+            <div style="text-align: center;">
+                <a th:href="${acceptLink}" class="button" href="#">Accept Connection</a>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 14px; color: #666;">
+                You can also view this request by visiting your 
+                <a href="#" style="color: #0a66c2;">LinkedIn inbox</a>.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>
+                This message was sent to you by LinkedIn. 
+                © <span th:text="${year}">2024</span> LinkedIn Corporation, 1000 W Maude Avenue, Sunnyvale, CA 94085.
+            </p>
+            <p>
+                <a href="#" style="color: #0a66c2; text-decoration: none;">Unsubscribe</a> | 
+                <a href="#" style="color: #0a66c2; text-decoration: none;">Help</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+
